@@ -1,1 +1,7 @@
+# fortran objects
+*.o
+*.mod
+
+/build
+
 .DS_Store

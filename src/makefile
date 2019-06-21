@@ -1,6 +1,6 @@
 #FC=ifort
 FC=gfortran 
-EXE=../gauss.exe
+EXE=../build/nemd.bin
 
 OBJ_SRC=nemd.o \
 	getControl.o \
