@@ -1,5 +1,7 @@
 subroutine vdwTables( vdwType, vdwEpsilon, vdwSigma, vdwRc, vvv, ggg, maxGrid, deltaGrid )
 
+  !Purpose: Pretabulate the force field
+
   implicit none
 
   integer ::  i

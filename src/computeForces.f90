@@ -9,11 +9,11 @@ subroutine computeForces( str, fld, prop, newList )
   type(field),      intent(inout)    :: fld 
   type(properties), intent(out)   :: prop
 
-  integer :: i, j, jj, k, a, b, ab, nList
+  integer :: i, j, jj, k, a, b, ab, nWall, nList
   integer :: index1, index2
 
 
-  real(8) :: sds, xi, vk0, vk1, vk2, t1, t2, uij, wij
+  real(8) :: sds, xi, vk0, vk1, vk2, t1, t2, uij, wij, lx
   real(8) :: lBoxI(3), rij(3), rr, fVal, rcSq, rListSq
 
   logical, intent(inout) :: newList
@@ -52,11 +52,10 @@ subroutine computeForces( str, fld, prop, newList )
   
         outer: if( rr < rListSq ) then
 
-
           nList = nList+1
 
           if(nList==fld%nMaxList) then
-            open(unit=7,file='output.dat',status='old',position='append')
+            open(unit=7,file='output.dat',status='unknown',action='write',position='append')
             write(unit=7,fmt="('Fatal: Verlet list too small')")
             close(unit=7)
             stop
@@ -242,18 +241,14 @@ subroutine computeForces( str, fld, prop, newList )
 
   ! Bonded interactions
 
-  jj=0
-
   do i=1, str%nSpecies
 
     do j=1, str%nMol(i)
 
       do k=1, str%nSites(i)-1
 
-        jj = jj + 1
-
         ! interparticle vector
-        rij(:) = str%rPart(:,jj) - str%rPart(:,jj+1)
+        rij(:) = str%rPart(:,k) - str%rPart(:,k+1)
         
         ! periodic boundary conditions
         rij(:) = rij(:) - str%lBox(:)*nint(rij(:)*lBoxI(:))
@@ -262,17 +257,54 @@ subroutine computeForces( str, fld, prop, newList )
         rr = dot_product(rij,rij)
 
         fVal = -str%hrmK(i)/(1.0d0-rr/str%hrmR(i)/str%hrmR(i))
-        str%fPart(:,jj) = str%fPart(:,jj) + fval*rij(:)
-        str%fPart(:,jj+1) = str%fPart(:,jj+1) - fval*rij(:)
+        str%fPart(:,i) = str%fPart(:,i) + fval*rij(:)
+        str%fPart(:,j) = str%fPart(:,j) - fval*rij(:)
         prop%potEnergy = prop%potEnergy - & 
                          0.50d0*str%hrmK(i)*str%hrmR(i)*str%hrmR(i)*dlog(1.0d0-rr/str%hrmR(i)/str%hrmR(i))
         prop%virial    = prop%virial + fval*rr
 
       end do
 
-      jj = jj + 1
-
     end do
+
+  end do
+
+
+  ! Restoring spring for particles in the wall
+
+  nWall = sum(str%nMol(1:str%nSpecies-1) )+1  ! First index of the wall
+
+  k=0
+  do i=nWall, str%nPart
+
+    k=k+1
+
+    rij= str%rPart(:,i)-str%wPart(:,k)
+
+    rij(:) = rij(:) - str%lBox(:)*nint(rij(:)*lBoxI(:))
+
+    rr = dot_product(rij,rij)
+
+    prop%potEnergy = prop%potEnergy + 0.5d0*str%hrmk(str%nSpecies)*rr
+
+    str%fPart(:,i) = str%fPart(:,i) - str%hrmk(str%nSpecies)*rij(:)
+    
+    prop%virial = prop%virial + wij*rr
+
+  end do
+
+
+  ! Applied external field to the fluid particles
+
+  lx = str%lBox(1)*0.5d0-fld%rangeExt
+
+  do i=1, nWall-1
+
+     if( str%rPart(1,i) <= - lx .and.  str%iPart(i) == 1 ) then
+       str%fPart(1,i) = str%fPart(1,i) - str%mPart(i)*fld%strengthExt
+     else if ( str%rPart(1,i) >= lx .and.  str%iPart(i) == 2 ) then
+       str%fPart(1,i) = str%fPart(1,i) + str%mPart(i)*fld%strengthExt
+     end if
 
   end do
 

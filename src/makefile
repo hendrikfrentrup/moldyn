@@ -1,32 +1,36 @@
-FC=gfortran
-EXE=../test/emd.exe
+#FC=ifort
+FC=gfortran 
+EXE=../gauss.exe
 
-OBJ_SRC=md.o \
+OBJ_SRC=nemd.o \
 	getControl.o \
 	getStructure.o \
 	vdwTables.o    \
 	setup.o        \
 	computeForces.o\
 	integrate_nvtGauss.o\
-        integrate_nveLeapFrog.o\
 	writeConfig.o \
 	resetAccum.o  \
 	sample.o      \
 	evolutionProperties.o \
+	gradients.o \
+	profiles.o \
 
 OBJ_MOD=global.o \
 	random.o
 
 $(EXE): $(OBJ_SRC) $(OBJ_MOD)
-	$(FC) -o $@ $(OBJ_SRC) $(OBJ_MOD)
+#	$(FC) -o $@ $(OBJ_SRC) $(OBJ_MOD) #-g -pg -fbounds-check -fbacktrace
+	$(FC) -o $@ $(OBJ_SRC) $(OBJ_MOD) # -g -check bounds
 
 %.o: %.f90
-	$(FC) -c -O3 $<  # -g -fbounds-check -fbacktrace $<
+#	$(FC)  -c -O3 $<  
+	$(FC)  -c -O3 $<
 
 $(OBJ_SRC):$(OBJ_MOD)
 
 clean:
-	rm *.o *.mod  $(EXE)
+	rm *.o *.mod 
 
 
 	

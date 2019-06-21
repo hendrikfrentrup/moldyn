@@ -2,7 +2,6 @@ subroutine setup( str, fld )
 
   ! Purpose: Get the force field and tabulation of the intermolecular potentials
 
-
   use global
   use gConstants
   implicit none
@@ -20,8 +19,6 @@ subroutine setup( str, fld )
   character(len=3), dimension(:), allocatable :: vdwType
 
 
-
-
   open(unit=200,file='field.inp',status='old',action='read')
 
   ! Number of different species
@@ -35,7 +32,7 @@ subroutine setup( str, fld )
   allocate( str%hrmK(str%nSpecies) )
 
   ! Reads molecular details of the different species
-  do k=1, str%nSpecies
+  do k=1, str%nSpecies-1
     read(unit=200,fmt=*) 
     read(unit=200,fmt=*) str%nMol(k)
     read(unit=200,fmt=*) str%nSites(k)
@@ -44,6 +41,14 @@ subroutine setup( str, fld )
     read(unit=200,fmt=*) str%hrmR(k),str%hrmK(k)
   end do
 
+  ! Reads molecular details of the wall
+  read(unit=200,fmt=*) 
+  read(unit=200,fmt=*) str%nMol(str%nSpecies)
+  read(unit=200,fmt=*) str%nameSites(str%nSpecies)
+  read(unit=200,fmt=*) str%massSites(str%nSpecies)
+  read(unit=200,fmt=*) str%hrmK(str%nSpecies)
+
+  str%nSites(str%nSPecies)=1
 
   ! Calculates total number of sites
   str%nPart= sum(str%nMol*str%nSites)
@@ -100,8 +105,7 @@ subroutine setup( str, fld )
     close(unit=1)
 
     ! Maximum size of the Verlet list
-    fld%nMaxList = int( 1.5*4.0*pi*(fld%delr+fld%rc)**3.0d0*dble(str%nPart**2)/6.0/product(lBox)) + 10 
-
+    fld%nMaxList = int( 3.5*4.0*pi*(fld%delr+fld%rc)**3.0d0*dble(str%nPart**2)/6.0/product(lBox)) 
 
     allocate(fld%vPoint(str%nPart))
     allocate(fld%vList(fld%nMaxList))
@@ -169,13 +173,19 @@ subroutine setup( str, fld )
 
 
 
+  ! Read the properties of the external field
+  read(unit=200,fmt=*)
+  read(unit=200,fmt=*) fld%rangeExt 
+  read(unit=200,fmt=*) fld%strengthExt 
+
+
   close(unit=200)
 
   open(unit=7,file='output.dat',status='old',action='write',position='append')
 
 
   write(unit=7,fmt="(//3x,'--Particles details')                            ")
-  do k=1, str%nSpecies
+  do k=1, str%nSpecies-1
   write(unit=7,fmt="(/3x,'Details of species                         ',i12)")  k
   write(unit=7,fmt="(3x,'Number of molecules                        ',i12)")   str%nMol(k) 
   write(unit=7,fmt="(3x,'Number of sites                            ',i12)")   str%nSites(k) 
@@ -184,6 +194,12 @@ subroutine setup( str, fld )
   write(unit=7,fmt="(3x,'Equilibrium distance for harmonic bond     ',f12.4)") str%hrmR(k) 
   write(unit=7,fmt="(3x,'Spring constant distance for harmonic bond ',f12.4)") str%hrmK(k) 
   end do
+
+  write(unit=7,fmt="(//3x,'--Wall details     ')                            ")
+  write(unit=7,fmt="(3x,'Number of particles in the wall            ',i12)")   str%nMol(str%nSpecies) 
+  write(unit=7,fmt="(3x,'Name of particles in the wall              ',a12)")   str%nameSites(str%nSpecies) 
+  write(unit=7,fmt="(3x,'Mass of the sites                          ',f12.4)") str%massSites(str%nSpecies)
+  write(unit=7,fmt="(3x,'Tethering spring constant                  ',f12.4)") str%hrmK(k) 
 
   write(unit=7,fmt="(//3x,'-- vdw interactions ')                           ")
   write(unit=7,fmt="(3x,'  Site1',3x,'  Site2',3x,'vdwType',3x,'epsilon',3x,'  sigma')")
@@ -196,6 +212,9 @@ subroutine setup( str, fld )
   write(unit=7,fmt="(3x,'Verlet list width                          ',f12.4)") fld%delr
   write(unit=7,fmt="(3x,'Verlet list ?                              ',l12  )") fld%lVerlet
 
+  write(unit=7,fmt="(//3x,'--External field details    ')                   ")
+  write(unit=7,fmt="(3x,'Extension of the external field            ',f12.4)") fld%rangeExt
+  write(unit=7,fmt="(3x,'strength of the external field             ',f12.4)") fld%strengthExt
   close(unit=7)
 
   return

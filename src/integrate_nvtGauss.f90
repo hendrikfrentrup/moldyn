@@ -1,4 +1,4 @@
-subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
+subroutine integrate_nvtGauss( cnt, str, prop, dispHis )
 
   ! Purpose: Integration of equations of motions using the Leap-Frog integrator.
   !          The temperature (kinetic energy) is fixed using the Evans
@@ -17,7 +17,6 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
   real(8) :: velSq, speedSq, speedMax, eta, unTemp, disp(3), lBoxI(3)
   real(8), dimension(:,:), allocatable :: vvv
   real(8), intent(inout) :: dispHis
-  integer, intent(in) :: step
 
 
   allocate( vvv(3,str%nPart) )
@@ -27,13 +26,72 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
   vvv(:,:) = str%vPart(:,:)
 
 
+  ! Integration of the equation of motions of the fluid particles
+
+  ! Calculate lower index in order to avoid the wall particles, which are
+  ! integrate in a different way
+  lowIndex = sum(str%nMol(1:str%nSpecies-1) )
+
+
+  outer: do i=1, lowIndex
+
+    ! New velocities at time 't+delta/2'
+    
+    str%vPart(:,i) = vvv(:,i) + cnt%timeStep*str%fPart(:,i)/str%mPart(i)
+    
+    ! Particles displacement
+    
+    disp(:) = cnt%timeStep*str%vPart(:,i)
+    
+    ! New position of particles at time 't+delta'
+    
+    str%rPart(:,i) = str%rPart(:,i) + disp(:)
+
+  end do outer
+
+
+  ! Calculate temperature an kinetic energy of the fluid at full time step and
+  ! accumulating maximum speed to check the updating of the Verlet list
+
+  velSq  = 0.0d0
+  speedMax=0.0d0
+
+  do i=1, lowIndex
+
+    ! velocity at full time step
+    vvv(:,i) = 0.5d0*( vvv(:,i) + str%vPart(:,i) )
+    
+    ! Square of velocities
+    speedSq = dot_product(vvv(:,i),vvv(:,i))
+
+    velSq = velSq + str%mPart(i)*speedSq
+
+    speedMax = max(speedMax,speedSq)
+     
+  end do
+
+  dispHis=dispHis+dsqrt(speedMax)*cnt%timeStep
+
+
+  ! Kinetic Energy
+  prop%kinEnergyFluid = 0.5d0*velSq
+
+
+  ! System Temperature
+  prop%tempFluid = velSq/(3.0d0*dble(lowIndex)-3.0d0)
+
+
+
+
+
+
   ! Integration of the equation of motions of the wall particles that are
   ! coupled to the Evans thermostat
 
-  ! Calculate unconstrained velocities at new time ( t + dt/2 )
+  ! Calculate unconstrained velocities at new time t 
   velSq = 0.0d0
 
-  do i=1, str%nPart
+  do i=lowIndex+1, str%nPart
 
     str%vPart(:,i) = vvv(:,i) +  0.5d0*cnt%timeStep*str%fPart(:,i)/str%mPart(i)
 
@@ -41,9 +99,9 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
 
   end do
 
-
+  
   ! Unconstrained system Temperature 
-  unTemp = velSq/str%dFreedom           ! check str%dFreedom
+  unTemp = velSq/(3.0d0*dble(str%nMol(str%nSpecies))-1)
 
 
   ! Calculate the rescaling velocity factor, eta
@@ -51,18 +109,17 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
 
 
   ! Constrained wall Temperature 
-  prop%temp = unTemp*eta*eta
+  prop%tempWall = unTemp*eta*eta
 
 
   ! Constrained Kinetic Energy
-  prop%kinEnergy = 0.5d0*velSq*eta*eta
+  prop%kinEnergyWall = 0.5d0*velSq*eta*eta
+
 
 
   ! Calculate new velocities (constrained) and positions using leap-frog algorithm
-  velSq = 0.0d0
-  speedMax=0.0d0
 
-  do i=1, str%nPart
+  do i=lowIndex+1, str%nPart
 
     ! New velocity
     str%vPart(:,i) = vvv(:,i)*(2.0d0*eta-1.0d0) + eta*cnt%timeStep*str%fPart(:,i)/str%mPart(i)
@@ -72,16 +129,13 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
     
     ! New position
     str%rPart(:,i) = str%rPart(:,i) + disp(:)
-    
-    velSq  = velSq +  dot_product(str%vPart(:,i),str%vPart(:,i))*str%mPart(i)
-
-    ! Square of velocities
-    speedSq = dot_product(str%vPart(:,i),str%vPart(:,i))
-    speedMax = max(speedMax,speedSq)
 
   end do
+      
+      
+               
 
-  dispHis=dispHis+dsqrt(speedMax)*cnt%timeStep
+
 
   ! Periodic boundary conditions
 
@@ -95,7 +149,7 @@ subroutine integrate_nvtGauss( cnt, str, prop, dispHis, step )
 
 
   ! Total system energy
-  prop%totEnergy = prop%kinEnergy + prop%potEnergy
+  prop%totEnergy = prop%kinEnergyWall + prop%kinEnergyFluid + prop%potEnergy
 
 
 

@@ -1,6 +1,6 @@
 subroutine getControl( cnt )
 
-  ! Purpose: Get control variables from file 
+  ! Purpose: Get control variables from file
 
   use global
   implicit none
@@ -22,6 +22,11 @@ subroutine getControl( cnt )
   read(unit=100,fmt=*) rubbish, cnt%reqTemp
   read(unit=100,fmt=*) rubbish, cnt%lTraj
   read(unit=100,fmt=*) rubbish, cnt%nTraj(:)
+  read(unit=100,fmt=*) 
+  read(unit=100,fmt=*) rubbish, cnt%lProfile
+  read(unit=100,fmt=*) rubbish, cnt%nProfile
+  read(unit=100,fmt=*) rubbish, cnt%nBinsProfile
+  read(unit=100,fmt=*) rubbish, cnt%lPore(:)
 
   close(unit=100)
 
@@ -32,11 +37,12 @@ subroutine getControl( cnt )
   open(unit=7,file='output.dat',status='unknown',action='write')
 
   write(unit=7,fmt="(2x,'----------------------------------------------------------',/,    &
-                     2x,'    Equilibrium Molecular Dynamics for Poiseuille flow    ',/,    &
-                     2x,'    Last update: December 2010                            ',/,    &
+                     2x,'  Non-equilibrium Molecular Dynamics for Poiseuille flow  ',/,    &
+                     2x,'  Last update: October 2010                               ',/,    &
+                     2x,'  Authors: H. Frentrup, C. Avendano, and E. A. Muller     ',/,    &
                      2x,'                                                          ',/,    &
-                     2x,'    Date : ',i2,'/',i2,'/',i4,'   (d/m/y)                 ',/,    &
-                     2x,'    Time : ',i2,'/',i2,'   (h/m)                          ',/,    &
+                     2x,'  Date : ',i2,'/',i2,'/',i4,'   (d/m/y)                   ',/,    &
+                     2x,'  Time : ',i2,'/',i2,'   (h/m)                            ',/,    &
                      2x,'----------------------------------------------------------',//)") &
                      date(3), date(2), date(1), date(5:6)
 
@@ -52,11 +58,11 @@ subroutine getControl( cnt )
   write(unit=7,fmt="(3x,'  File option content                      ',i12)")     cnt%nTraj(3)
   write(unit=7,fmt="(3x,'Time step                                  ',f12.4)")   cnt%timeStep
   write(unit=7,fmt="(3x,'Target temperature                         ',f12.4)")   cnt%reqTemp
-
+  write(unit=7,fmt="(3x,'Calculation of profiles?                   ',l12  )")   cnt%lProfile
+  write(unit=7,fmt="(3x,'  Frecuency of sampling                    ',i12  )")   cnt%nProfile
+  write(unit=7,fmt="(3x,'  Number of bins in the profiles           ',i12  )")   cnt%nBinsProfile
 
   close(unit=7)
-
-
 
 
 end subroutine getControl

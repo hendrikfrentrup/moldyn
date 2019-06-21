@@ -3,4 +3,4 @@
 
 This code was designed to study the diffusion behaviour of the Lennard Jones fluid in slit pores.
 
-This branch `emd` simulates an equilibrium fluid, hence the calculation of self-diffusion coefficients via the Einstein equation is possible.
+This branch `nemd` simulates a non-equilibrium fluid, where a force is applied at the system box's boundary in a direction orthogonal to the pore. The calculation of transport diffusion coefficients is possible via Fick's Law equation.

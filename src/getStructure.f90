@@ -24,6 +24,7 @@ subroutine getStructure( cnt, str, prop )
   allocate( str%fPart(3,str%nPart) )
   allocate( str%iPart(str%nPart) )
   allocate( str%mPart(str%nPart) )
+  allocate( str%wPart(3,str%nMol(str%nSpecies)) )
 
   open(unit=300,file='config.inp',status='old',action='read')
 
@@ -66,9 +67,12 @@ subroutine getStructure( cnt, str, prop )
   end do
 
 
-
+  ! Read lattice points of particles in the wall
+  read(unit=300,fmt=*) 
+  do i=1, str%nMol(str%nSpecies)
+    read(unit=300,fmt=*) str%wPart(:,i)
+  end do
   close(unit=300)
-
 
    ! Setup number of degrees of fredom
   if( cnt%ensemble == 'nve_res' .or. cnt%ensemble == 'nvt_ber' .or. cnt%ensemble == 'nvt_nos') then
@@ -76,8 +80,6 @@ subroutine getStructure( cnt, str, prop )
   else if( cnt%ensemble == 'nvt_gau' ) then
     str%dFreedom = 3.0d0*(dble(str%nPart) - 1.0d0) - 1.0d0
   end if
-
-
 
   ! Velocities of each molecule at random
   comVel=0.0d0
@@ -100,12 +102,11 @@ subroutine getStructure( cnt, str, prop )
 
   end do
 
-
   ! calculate velocity of system-center-of-mass and system temperature
   comVel = comVel/comMass
   temp = temp/str%dFreedom
-  prop%temp = temp
-
+  prop%tempWall = temp
+  prop%tempFluid = temp
 
   ! Rescale velocities to get desired temperature and zero velocity of the
   ! system center of mass.
@@ -113,7 +114,7 @@ subroutine getStructure( cnt, str, prop )
     str%vPart(:,i) = (str%vPart(:,i) - comVel(:))*dsqrt(cnt%reqTemp/temp)
   end do
 
-
+  str%lPore(:) = cnt%lPore
 
 
 end subroutine getStructure
